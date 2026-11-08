@@ -9,3 +9,4 @@ build/
 dist/
 *.spec
 node_modules/
+recommender_anime.db

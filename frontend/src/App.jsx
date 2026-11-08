@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 
-function Card({ m, onRate }) {
+function Card({ m, dataset, onRate }) {
   const [ok, setOk] = useState(true);
   return (
     <div className="card">
       {ok ? (
-        <img src={`/api/poster/${m.id}`} alt="" onError={() => setOk(false)} />
+        <img src={`/api/poster/${m.id}?dataset=${dataset}`} alt="" onError={() => setOk(false)} />
       ) : (
         <div className="noimg">{m.title}</div>
       )}
@@ -21,48 +21,47 @@ function Card({ m, onRate }) {
 }
 
 export default function App() {
+  const [dataset, setDataset] = useState("movies");
   const [user, setUser] = useState("1");
   const [q, setQ] = useState("");
   const [title, setTitle] = useState("");
-  const [movies, setMovies] = useState([]);
+  const [items, setItems] = useState([]);
   const [status, setStatus] = useState("");
-  const [animeOnly, setAnimeOnly] = useState(false);
-  const [showingSearch, setShowingSearch] = useState(false);
 
-  const loadRecs = async (filterAnime = animeOnly) => {
-    const r = await fetch(`/api/recommendations/${user}?n=20&anime=${filterAnime}`);
-    setMovies(await r.json());
-    setShowingSearch(false);
-    setTitle(filterAnime ? "Anime / animation recommendations" : "Recommended for you");
+  const loadRecs = async (ds = dataset) => {
+    setStatus(ds === "anime" ? "Loading anime model (first time takes about a minute)..." : "");
+    const r = await fetch(`/api/recommendations/${user}?n=20&dataset=${ds}`);
+    setItems(await r.json());
+    setTitle("Recommended for you");
+    setStatus("");
   };
 
-  const search = async (filterAnime = animeOnly) => {
+  const search = async () => {
     if (!q.trim()) return;
-    const r = await fetch(`/api/search?q=${encodeURIComponent(q)}&anime=${filterAnime}`);
-    setMovies(await r.json());
-    setShowingSearch(true);
-    setTitle(`Results for "${q}"${filterAnime ? " (anime / animation)" : ""}`);
+    const r = await fetch(`/api/search?q=${encodeURIComponent(q)}&dataset=${dataset}`);
+    setItems(await r.json());
+    setTitle(`Results for "${q}"`);
   };
 
-  const toggleAnime = (enabled) => {
-    setAnimeOnly(enabled);
-    if (showingSearch && q.trim()) search(enabled);
-    else loadRecs(enabled);
-  };
-
-  const rate = async (movieId, rating) => {
+  const rate = async (id, rating) => {
     await fetch("/api/rate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: Number(user), movie_id: movieId, rating }),
+      body: JSON.stringify({ user_id: Number(user), movie_id: id, rating, dataset }),
     });
     setStatus(`Saved ${rating} stars. Click Retrain to update recommendations.`);
   };
 
   const retrain = async () => {
-    await fetch("/api/retrain", { method: "POST" });
+    await fetch(`/api/retrain?dataset=${dataset}`, { method: "POST" });
     setStatus("Retraining... recommendations reload in a few seconds.");
-    setTimeout(() => { loadRecs(); setStatus("Recommendations updated."); }, 8000);
+    setTimeout(() => { loadRecs(); setStatus("Recommendations updated."); }, 10000);
+  };
+
+  const switchTo = (ds) => {
+    setDataset(ds);
+    setItems([]);
+    loadRecs(ds);
   };
 
   useEffect(() => { loadRecs(); }, []);
@@ -70,18 +69,12 @@ export default function App() {
   return (
     <div className="wrap">
       <div className="bar">
+        <button onClick={() => switchTo("movies")} style={{ background: dataset === "movies" ? "#e50914" : "#222" }}>Movies</button>
+        <button onClick={() => switchTo("anime")} style={{ background: dataset === "anime" ? "#e50914" : "#222" }}>Anime</button>
         <input value={user} onChange={(e) => setUser(e.target.value)} style={{ width: 60 }} />
-        <button onClick={loadRecs}>Load</button>
-        <label className="anime-toggle" title="Filters to titles tagged Animation in MovieLens">
-          <input
-            type="checkbox"
-            checked={animeOnly}
-            onChange={(e) => toggleAnime(e.target.checked)}
-          />
-          Anime / animation
-        </label>
+        <button onClick={() => loadRecs()}>Load</button>
         <input
-          placeholder="Search movies..."
+          placeholder={`Search ${dataset}...`}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && search()}
@@ -91,7 +84,7 @@ export default function App() {
       </div>
       <h2>{title}</h2>
       <div className="row">
-        {movies.map((m) => <Card key={m.id} m={m} onRate={rate} />)}
+        {items.map((m) => <Card key={`${dataset}-${m.id}`} m={m} dataset={dataset} onRate={rate} />)}
       </div>
       <p>{status}</p>
     </div>
