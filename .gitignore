@@ -1,7 +1,7 @@
 venv/
 __pycache__/
 cache/
-data/
+/data/
 recommender.db
 tmdb_key.txt
 patch.py
