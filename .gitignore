@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+cache/
+data/
+recommender.db
+tmdb_key.txt
+patch.py
+build/
+dist/
+*.spec
