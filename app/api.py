@@ -17,13 +17,13 @@ class RateIn(BaseModel):
 
 
 @app.get("/recommendations/{user_id}")
-def recommendations(user_id: int, n: int = 20):
-    return svc.get_recommendations(user_id, n)
+def recommendations(user_id: int, n: int = 20, anime: bool = False):
+    return svc.get_recommendations(user_id, n, anime_only=anime)
 
 
 @app.get("/search")
-def search(q: str):
-    return svc.search_movies(q, 20)
+def search(q: str, anime: bool = False):
+    return svc.search_movies(q, 20, anime_only=anime)
 
 
 @app.post("/rate")

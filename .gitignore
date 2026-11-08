@@ -8,3 +8,4 @@ patch.py
 build/
 dist/
 *.spec
+node_modules/

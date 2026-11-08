@@ -21,10 +21,20 @@ class RecommenderService:
         pop = lambda user_id, seen: [m for m in ranked if m not in seen]
         self._recommend = make_hybrid(make_itemcf(self.ratings), pop, w=0.5)
 
-    def get_recommendations(self, user_id, n=10):
+    def get_recommendations(self, user_id, n=10, anime_only=False):
         seen = set(self.ratings[self.ratings.user_id == user_id].movie_id)
-        ids = self._recommend(user_id, seen)[:n]
+        ids = self._recommend(user_id, seen)
+        if anime_only:
+            ids = [
+                movie_id for movie_id in ids
+                if movie_id in self.movies.index and self._is_animation(self.movies.at[movie_id, "genres"])
+            ]
+        ids = ids[:n]
         return self.movies.loc[ids].reset_index().to_dict("records")
+
+    @staticmethod
+    def _is_animation(genres):
+        return isinstance(genres, str) and "Animation" in genres.split("|")
 
     def rate_movie(self, user_id, movie_id, rating):
         """Save a rating. Call refresh() to retrain with it."""
@@ -40,8 +50,10 @@ class RecommenderService:
             result = conn.execute(text("INSERT INTO users (name) VALUES (:n)"), {"n": name})
             return result.lastrowid
 
-    def search_movies(self, query, limit=20):
+    def search_movies(self, query, limit=20, anime_only=False):
         hits = self.movies[self.movies.title.str.contains(query, case=False, regex=False)]
+        if anime_only:
+            hits = hits[hits.genres.map(self._is_animation)]
         return hits.head(limit).reset_index().to_dict("records")
 
 
